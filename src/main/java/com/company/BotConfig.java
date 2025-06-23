@@ -15,13 +15,10 @@ public class BotConfig {
     }
 
     @Bean
-    public String run() {
-        try {
-            TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
-            api.registerBot(myBot());
-            return "SUCCES";
-        } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
-        }
+    public String run() throws TelegramApiException {
+
+        TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
+        api.registerBot(myBot());
+        return "SUCCES";
     }
 }

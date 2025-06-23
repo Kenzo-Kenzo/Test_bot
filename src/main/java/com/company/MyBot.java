@@ -18,344 +18,445 @@ import java.util.*;
 
 public class MyBot extends TelegramLongPollingBot {
 
-    // Mahsulotlar ro'yxati
-    private final List<Product> products = Arrays.asList(
-            new Product(1, "Erkaklar klassik ko'ylagi", 150000, "https://images.unsplash.com/photo-1621072156002-e2fccdc0b176", "Yuqori sifatli erkaklar ko'ylagi"),
-            new Product(2, "Ayollar bluzasi", 120000, "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1", "Zamonaviy dizayndagi ayollar bluzasi"),
-            new Product(3, "Jin shim", 200000, "https://images.unsplash.com/photo-1541840031508-326b77c9a17e", "Klassik jin shim"),
-            new Product(4, "Ayollar ko'ylagi", 180000, "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446", "Chiroyli ayollar ko'ylagi"),
-            new Product(5, "Erkaklar futbolkasi", 80000, "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab", "Sport va kundalik uchun futbolka"),
-            new Product(6, "Ayollar jinsi", 160000, "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1", "Moda jinsi"),
-            new Product(7, "Erkaklar kostyumi", 450000, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d", "Rasmiy marosimlar uchun kostyum"),
-            new Product(8, "Ayollar yubkasi", 100000, "https://images.unsplash.com/photo-1583496661160-fb5886a13d14", "Zamonaviy yubka"),
-            new Product(9, "Erkaklar sportivka", 250000, "https://images.unsplash.com/photo-1556821840-3a63f95609a7", "Sport kiyimi to'plami"),
-            new Product(10, "Ayollar kurtka", 280000, "https://images.unsplash.com/photo-1551028719-00167b16eac5", "Qish uchun issiq kurtka")
-    );
+    // Faberlic mahsulotlar ma'lumotlari
+    private Map<String, Product> products = new HashMap<>();
 
-    // Savat (har bir foydalanuvchi uchun)
-    private final Map<Long, List<CartItem>> userCarts = new HashMap<>();
+    // Savatcha ma'lumotlari (userId -> mahsulotlar)
+    private Map<Long, List<CartItem>> userCarts = new HashMap<>();
+
+    private Map<Long, String> userStates = new HashMap<>();
 
     public MyBot() {
-        super("7813324922:AAGnDITScZMBG_7ecwmIaAH70gYphdPBwis");
+        super("8158187629:AAHXSz0h8aUBfOaQkbSsAyu0EkH3rz7EQAg");
+        initializeProducts();
     }
 
     @Override
     public String getBotUsername() {
-        return "@Saidaxror_move_bot";
+        return "https://t.me/faberlic_sirdaryobot";
+    }
+
+    // Mahsulotlarni boshlang'ich ma'lumotlar bilan to'ldirish
+    private void initializeProducts() {
+        products.put("parfum1", new Product("parfum1", "Faberlic Zen 🌸",
+                "Ayollar uchun nozik va romantik hid", 150000,
+                "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=400"));
+
+        products.put("parfum2", new Product("parfum2", "Faberlic Royal 👑",
+                "Erkaklar uchun kuchli va charismatik parfyum", 180000,
+                "https://images.unsplash.com/photo-1588405748880-12d1d2a59d32?w=400"));
+
+        products.put("cream1", new Product("cream1", "Faberlic Anti-Age Krem 💆‍♀️",
+                "Qarishga qarshi samarali krem", 120000,
+                "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=400"));
+
+        products.put("lipstick1", new Product("lipstick1", "Faberlic Matte Lipstick 💄",
+                "Uzoq davom etuvchi mat lab bo'yog'i", 65000,
+                "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400"));
+
+        products.put("shampoo1", new Product("shampoo1", "Faberlic Repair Shampoo 🧴",
+                "Zarar ko'rgan sochlarni tiklash uchun", 85000,
+                "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=400"));
     }
 
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            handleTextMessage(update.getMessage());
+        if (update.hasMessage()) {
+            handleMessage(update.getMessage());
         } else if (update.hasCallbackQuery()) {
             handleCallbackQuery(update.getCallbackQuery());
         }
     }
 
     @SneakyThrows
-    private void handleTextMessage(Message message) {
-        long chatId = message.getChatId();
+    private void handleMessage(Message message) {
+        Long chatId = message.getChatId();
         String text = message.getText();
 
-        switch (text) {
-            case "/start":
-                sendWelcomeMessage(chatId);
-                break;
-            case "🛍️ Mahsulotlar":
-                showProducts(chatId);
-                break;
-            case "🛒 Savat":
-                showCart(chatId);
-                break;
-            case "📞 Aloqa":
-                showContact(chatId);
-                break;
-            case "ℹ️ Ma'lumot":
-                showInfo(chatId);
-                break;
-            default:
-                sendMessage(chatId, "Iltimos, menyudan tanlang 👇");
+        if ("/start".equals(text)) {
+            sendWelcomeMessage(chatId);
+        } else if ("🛍️ Mahsulotlar".equals(text)) {
+            showProductCategories(chatId);
+        } else if ("🛒 Savatcha".equals(text)) {
+            showCart(chatId);
+        } else if ("ℹ️ Ma'lumot".equals(text)) {
+            sendInfo(chatId);
+        } else if ("📞 Aloqa".equals(text)) {
+            sendContact(chatId);
+        } else {
+            // Noma'lum xabar
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("Iltimos, menyudan tanlang 👇");
+            execute(sendMessage);
         }
     }
 
     @SneakyThrows
     private void handleCallbackQuery(CallbackQuery callbackQuery) {
+        Long chatId = callbackQuery.getMessage().getChatId();
         String data = callbackQuery.getData();
-        long chatId = callbackQuery.getMessage().getChatId();
 
-        if (data.startsWith("product_")) {
-            int productId = Integer.parseInt(data.split("_")[1]);
-            showProductDetail(chatId, productId);
-        } else if (data.startsWith("add_")) {
-            int productId = Integer.parseInt(data.split("_")[1]);
+        if (data.startsWith("category_")) {
+            String category = data.substring(9);
+            showProductsByCategory(chatId, category);
+        } else if (data.startsWith("product_")) {
+            String productId = data.substring(8);
+            showProductDetails(chatId, productId);
+        } else if (data.startsWith("add_to_cart_")) {
+            String productId = data.substring(12);
             addToCart(chatId, productId);
-        } else if (data.startsWith("remove_")) {
-            int productId = Integer.parseInt(data.split("_")[1]);
+        } else if (data.equals("show_cart")) {
+            showCart(chatId);
+        } else if (data.startsWith("remove_from_cart_")) {
+            String productId = data.substring(17);
             removeFromCart(chatId, productId);
         } else if (data.equals("clear_cart")) {
             clearCart(chatId);
         } else if (data.equals("checkout")) {
-            checkout(chatId);
-        } else if (data.equals("back_to_products")) {
-            showProducts(chatId);
+            processCheckout(chatId);
         }
     }
 
     @SneakyThrows
-    private void sendWelcomeMessage(long chatId) {
-        String welcomeText = "🎉 *Kiyim-Kechak Do'konimizga Xush Kelibsiz!* 🎉\n\n" +
-                "Bizda eng so'nggi moda va yuqori sifatli kiyimlar mavjud!\n\n" +
-                "🛍️ Mahsulotlarimizni ko'rish\n" +
-                "🛒 Savatchangizni tekshirish\n" +
-                "📞 Biz bilan bog'lanish\n\n" +
-                "*Hoziroq xarid qilishni boshlang!*";
-
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(welcomeText);
-        message.setParseMode("Markdown");
-        message.setReplyMarkup(getMainKeyboard());
-
-        execute(message);
-    }
-
-    @SneakyThrows
-    private void showProducts(long chatId) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText("🛍️ *Bizning mahsulotlarimiz:*");
-        message.setParseMode("Markdown");
-        message.setReplyMarkup(getProductsKeyboard());
-
-        execute(message);
-    }
-
-    @SneakyThrows
-    private void showProductDetail(long chatId, int productId) {
-        Product product = products.stream()
-                .filter(p -> p.getId() == productId)
-                .findFirst()
-                .orElse(null);
-
-        if (product == null) return;
-
-        SendPhoto photo = new SendPhoto();
-        photo.setChatId(chatId);
-        photo.setPhoto(new InputFile(product.getImageUrl()));
-
-        String caption = String.format(
-                "*%s*\n\n" +
-                        "💰 Narxi: *%,d so'm*\n\n" +
-                        "📝 Ta'rif: %s\n\n" +
-                        "Qo'shish uchun tugmani bosing 👇",
-                product.getName(),
-                product.getPrice(),
-                product.getDescription()
+    private void sendWelcomeMessage(Long chatId) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(
+                "🌟 *Faberlic Online Do'koniga Xush Kelibsiz!* 🌟\n\n" +
+                        "💄 Go'zallik va parvarish mahsulotlari\n" +
+                        "🌸 Parfyumeriya\n" +
+                        "✨ Yuqori sifat, arzon narx\n\n" +
+                        "Menyudan kerakli bo'limni tanlang:"
         );
-
-        photo.setCaption(caption);
-        photo.setParseMode("Markdown");
-        photo.setReplyMarkup(getProductDetailKeyboard(productId));
-
-        execute(photo);
+        sendMessage.setParseMode("Markdown");
+        sendMessage.setReplyMarkup(getMainKeyboard());
+        execute(sendMessage);
     }
 
     @SneakyThrows
-    private void showCart(long chatId) {
-        List<CartItem> cart = userCarts.getOrDefault(chatId, new ArrayList<>());
+    private void showProductCategories(Long chatId) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("🛍️ *Mahsulot kategoriyalarini tanlang:*");
+        sendMessage.setParseMode("Markdown");
+        sendMessage.setReplyMarkup(getCategoryKeyboard());
+        execute(sendMessage);
+    }
 
-        if (cart.isEmpty()) {
-            sendMessage(chatId, "🛒 Savatingiz bo'sh\n\nMahsulot qo'shish uchun 'Mahsulotlar' bo'limiga o'ting");
+    @SneakyThrows
+    private void showProductsByCategory(Long chatId, String category) {
+        List<Product> categoryProducts = getProductsByCategory(category);
+
+        if (categoryProducts.isEmpty()) {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("❌ Bu kategoriyada hozircha mahsulotlar yo'q");
+            execute(sendMessage);
             return;
         }
 
-        StringBuilder text = new StringBuilder("🛒 *Savatingiz:*\n\n");
-        int total = 0;
+        for (Product product : categoryProducts) {
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(chatId);
+            sendPhoto.setPhoto(new InputFile(product.getImageUrl()));
+            sendPhoto.setCaption(
+                    "*" + product.getName() + "*\n\n" +
+                            product.getDescription() + "\n\n" +
+                            "💰 Narxi: *" + formatPrice(product.getPrice()) + " so'm*"
+            );
+            sendPhoto.setParseMode("Markdown");
+            sendPhoto.setReplyMarkup(getProductKeyboard(product.getId()));
+            execute(sendPhoto);
+        }
+    }
 
+    @SneakyThrows
+    private void showProductDetails(Long chatId, String productId) {
+        Product product = products.get(productId);
+        if (product == null) {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("❌ Mahsulot topilmadi");
+            execute(sendMessage);
+            return;
+        }
+
+        SendPhoto sendPhoto = new SendPhoto();
+        sendPhoto.setChatId(chatId);
+        sendPhoto.setPhoto(new InputFile(product.getImageUrl()));
+        sendPhoto.setCaption(
+                "🌟 *" + product.getName() + "*\n\n" +
+                        "📝 Tavsif: " + product.getDescription() + "\n\n" +
+                        "💰 Narxi: *" + formatPrice(product.getPrice()) + " so'm*\n\n" +
+                        "Savatchaga qo'shishni xohlaysizmi?"
+        );
+        sendPhoto.setParseMode("Markdown");
+        sendPhoto.setReplyMarkup(getAddToCartKeyboard(productId));
+        execute(sendPhoto);
+    }
+
+    @SneakyThrows
+    private void addToCart(Long chatId, String productId) {
+        Product product = products.get(productId);
+        if (product == null) return;
+
+        userCarts.computeIfAbsent(chatId, k -> new ArrayList<>());
+        List<CartItem> cart = userCarts.get(chatId);
+
+        // Agar mahsulot savatchada bo'lsa, miqdorini oshir
+        boolean found = false;
         for (CartItem item : cart) {
-            Product product = getProductById(item.getProductId());
-            if (product != null) {
-                int itemTotal = product.getPrice() * item.getQuantity();
-                text.append(String.format("• %s\n  Miqdor: %d × %,d = *%,d so'm*\n\n",
-                        product.getName(), item.getQuantity(), product.getPrice(), itemTotal));
-                total += itemTotal;
+            if (item.getProductId().equals(productId)) {
+                item.setQuantity(item.getQuantity() + 1);
+                found = true;
+                break;
             }
         }
 
-        text.append(String.format("💰 *Jami: %,d so'm*", total));
-
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(text.toString());
-        message.setParseMode("Markdown");
-        message.setReplyMarkup(getCartKeyboard());
-
-        execute(message);
-    }
-
-    @SneakyThrows
-    private void showContact(long chatId) {
-        String contactText = "📞 *Biz bilan bog'laning:*\n\n" +
-                "📱 Telefon: +998 90 123 45 67\n" +
-                "📱 Telegram: @kiyim_dokani\n" +
-                "📧 Email: info@kiyimdokani.uz\n" +
-                "🏢 Manzil: Toshkent sh., Amir Temur ko'chasi 15\n\n" +
-                "🕒 Ish vaqti: 9:00 - 21:00 (har kuni)";
-
-        sendMessage(chatId, contactText);
-    }
-
-    @SneakyThrows
-    private void showInfo(long chatId) {
-        String infoText = "ℹ️ *Do'kon haqida ma'lumot:*\n\n" +
-                "🎯 Bizning maqsadimiz - sizga eng yaxshi kiyimlarni taqdim etish!\n\n" +
-                "✅ Yuqori sifat\n" +
-                "✅ Arzon narxlar\n" +
-                "✅ Tez yetkazib berish\n" +
-                "✅ Kafolat beriladigan xizmat\n\n" +
-                "🚚 *Yetkazib berish:*\n" +
-                "• Toshkent bo'ylab - 20,000 so'm\n" +
-                "• Viloyatlarga - 35,000 so'm\n" +
-                "• 500,000 so'mdan yuqori xaridlarda - BEPUL!\n\n" +
-                "💳 *To'lov usullari:*\n" +
-                "• Naqd pul\n" +
-                "• Plastik karta\n" +
-                "• Bank o'tkazmasi";
-
-        sendMessage(chatId, infoText);
-    }
-
-    private void addToCart(long chatId, int productId) {
-        List<CartItem> cart = userCarts.computeIfAbsent(chatId, k -> new ArrayList<>());
-
-        CartItem existingItem = cart.stream()
-                .filter(item -> item.getProductId() == productId)
-                .findFirst()
-                .orElse(null);
-
-        if (existingItem != null) {
-            existingItem.setQuantity(existingItem.getQuantity() + 1);
-        } else {
+        if (!found) {
             cart.add(new CartItem(productId, 1));
         }
 
-        Product product = getProductById(productId);
-        sendMessage(chatId, "✅ " + product.getName() + " savatga qo'shildi!");
-    }
-
-    private void removeFromCart(long chatId, int productId) {
-        List<CartItem> cart = userCarts.get(chatId);
-        if (cart != null) {
-            cart.removeIf(item -> item.getProductId() == productId);
-            sendMessage(chatId, "🗑️ Mahsulot savatdan olib tashlandi");
-        }
-    }
-
-    private void clearCart(long chatId) {
-        userCarts.remove(chatId);
-        sendMessage(chatId, "🗑️ Savat tozalandi");
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("✅ *" + product.getName() + "* savatchaga qo'shildi!");
+        sendMessage.setParseMode("Markdown");
+        sendMessage.setReplyMarkup(getAfterAddKeyboard());
+        execute(sendMessage);
     }
 
     @SneakyThrows
-    private void checkout(long chatId) {
+    private void showCart(Long chatId) {
         List<CartItem> cart = userCarts.get(chatId);
+
         if (cart == null || cart.isEmpty()) {
-            sendMessage(chatId, "Savatingiz bo'sh!");
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("🛒 Savatchangiz bo'sh\n\nMahsulotlarni ko'rish uchun /start bosing");
+            execute(sendMessage);
             return;
         }
 
-        int total = cart.stream()
-                .mapToInt(item -> {
-                    Product product = getProductById(item.getProductId());
-                    return product != null ? product.getPrice() * item.getQuantity() : 0;
-                })
-                .sum();
+        StringBuilder message = new StringBuilder("🛒 *Sizning savatchangiz:*\n\n");
+        int totalPrice = 0;
 
-        String orderText = "✅ *Buyurtmangiz qabul qilindi!*\n\n" +
-                String.format("💰 Jami summa: *%,d so'm*\n\n", total) +
-                "📞 Tez orada operatorlarimiz siz bilan bog'lanishadi.\n\n" +
-                "🚚 Yetkazib berish 1-2 kun ichida amalga oshiriladi.\n\n" +
-                "*Xarid uchun rahmat!* 🙏";
+        for (CartItem item : cart) {
+            Product product = products.get(item.getProductId());
+            if (product != null) {
+                int itemTotal = product.getPrice() * item.getQuantity();
+                totalPrice += itemTotal;
 
-        clearCart(chatId);
-        sendMessage(chatId, orderText);
-    }
+                message.append("• ").append(product.getName()).append("\n");
+                message.append("  Miqdori: ").append(item.getQuantity()).append(" x ");
+                message.append(formatPrice(product.getPrice())).append(" = ");
+                message.append(formatPrice(itemTotal)).append(" so'm\n\n");
+            }
+        }
 
-    private Product getProductById(int id) {
-        return products.stream()
-                .filter(p -> p.getId() == id)
-                .findFirst()
-                .orElse(null);
+        message.append("💰 *Jami: ").append(formatPrice(totalPrice)).append(" so'm*");
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(message.toString());
+        sendMessage.setParseMode("Markdown");
+        sendMessage.setReplyMarkup(getCartKeyboard());
+        execute(sendMessage);
     }
 
     @SneakyThrows
-    private void sendMessage(long chatId, String text) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText(text);
-        message.setParseMode("Markdown");
-        execute(message);
+    private void removeFromCart(Long chatId, String productId) {
+        List<CartItem> cart = userCarts.get(chatId);
+        if (cart != null) {
+            cart.removeIf(item -> item.getProductId().equals(productId));
+        }
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("🗑️ Mahsulot savatchadan olib tashlandi");
+        execute(sendMessage);
+
+        showCart(chatId);
     }
 
+    @SneakyThrows
+    private void clearCart(Long chatId) {
+        userCarts.remove(chatId);
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText("🗑️ Savatcha tozalandi");
+        execute(sendMessage);
+    }
+
+    @SneakyThrows
+    private void processCheckout(Long chatId) {
+        List<CartItem> cart = userCarts.get(chatId);
+        if (cart == null || cart.isEmpty()) {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText("❌ Savatcha bo'sh");
+            execute(sendMessage);
+            return;
+        }
+
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(
+                "📞 *Buyurtmani tasdiqlash uchun:*\n\n" +
+                        "☎️ Telefon: +998 90 123 45 67\n" +
+                        "📱 Telegram: @faberlic_admin\n\n" +
+                        "Bizning operatorlarimiz siz bilan bog'lanib, " +
+                        "buyurtmani tasdiqlaydi va yetkazib berish vaqtini belgilaydi.\n\n" +
+                        "🚚 Toshkent bo'yicha - BEPUL yetkazib berish!"
+        );
+        sendMessage.setParseMode("Markdown");
+        execute(sendMessage);
+    }
+
+    @SneakyThrows
+    private void sendInfo(Long chatId) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(
+                "ℹ️ *Faberlic haqida:*\n\n" +
+                        "🌟 30 yildan ortiq tajriba\n" +
+                        "🌍 20+ mamlakatda faoliyat\n" +
+                        "🔬 O'z laboratoriyalari\n" +
+                        "✅ Sertifikatlangan mahsulotlar\n" +
+                        "💯 Kafolat va sifat\n\n" +
+                        "🎯 *Bizning afzalliklarimiz:*\n" +
+                        "• Tez yetkazib berish\n" +
+                        "• Arzon narxlar\n" +
+                        "• Keng assortiment\n" +
+                        "• Professional maslahat"
+        );
+        sendMessage.setParseMode("Markdown");
+        execute(sendMessage);
+    }
+
+    @SneakyThrows
+    private void sendContact(Long chatId) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(
+                "📞 *Biz bilan bog'laning:*\n\n" +
+                        "☎️ Telefon: +998 90 123 45 67\n" +
+                        "📱 Telegram: @faberlic_admin\n" +
+                        "📧 Email: info@faberlic.uz\n\n" +
+                        "🕒 *Ish vaqti:*\n" +
+                        "Dushanba - Shanba: 9:00 - 18:00\n" +
+                        "Yakshanba: 10:00 - 16:00\n\n" +
+                        "📍 *Manzil:*\n" +
+                        "Toshkent sh., Chilonzor t., A.Temur ko'chasi 12-uy"
+        );
+        sendMessage.setParseMode("Markdown");
+        execute(sendMessage);
+    }
+
+    // Klaviaturalar
     private ReplyKeyboardMarkup getMainKeyboard() {
         ReplyKeyboardMarkup keyboard = new ReplyKeyboardMarkup();
         keyboard.setResizeKeyboard(true);
+        keyboard.setOneTimeKeyboard(false);
 
         List<KeyboardRow> rows = new ArrayList<>();
 
         KeyboardRow row1 = new KeyboardRow();
         row1.add(new KeyboardButton("🛍️ Mahsulotlar"));
-        row1.add(new KeyboardButton("🛒 Savat"));
+        row1.add(new KeyboardButton("🛒 Savatcha"));
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add(new KeyboardButton("📞 Aloqa"));
         row2.add(new KeyboardButton("ℹ️ Ma'lumot"));
+        row2.add(new KeyboardButton("📞 Aloqa"));
 
         rows.add(row1);
         rows.add(row2);
-
         keyboard.setKeyboard(rows);
+
         return keyboard;
     }
 
-    private InlineKeyboardMarkup getProductsKeyboard() {
-        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-
-        for (Product product : products) {
-            List<InlineKeyboardButton> row = new ArrayList<>();
-            InlineKeyboardButton button = new InlineKeyboardButton();
-            button.setText(product.getName() + " - " + String.format("%,d so'm", product.getPrice()));
-            button.setCallbackData("product_" + product.getId());
-            row.add(button);
-            rows.add(row);
-        }
-
-        keyboard.setKeyboard(rows);
-        return keyboard;
-    }
-
-    private InlineKeyboardMarkup getProductDetailKeyboard(int productId) {
+    private InlineKeyboardMarkup getCategoryKeyboard() {
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         List<InlineKeyboardButton> row1 = new ArrayList<>();
-        InlineKeyboardButton addButton = new InlineKeyboardButton();
-        addButton.setText("🛒 Savatga qo'shish");
-        addButton.setCallbackData("add_" + productId);
-        row1.add(addButton);
-        rows.add(row1);
+        row1.add(InlineKeyboardButton.builder()
+                .text("🌸 Parfyumeriya")
+                .callbackData("category_perfume")
+                .build());
 
         List<InlineKeyboardButton> row2 = new ArrayList<>();
-        InlineKeyboardButton backButton = new InlineKeyboardButton();
-        backButton.setText("⬅️ Orqaga");
-        backButton.setCallbackData("back_to_products");
-        row2.add(backButton);
-        rows.add(row2);
+        row2.add(InlineKeyboardButton.builder()
+                .text("💆‍♀️ Parvarish")
+                .callbackData("category_skincare")
+                .build());
 
+        List<InlineKeyboardButton> row3 = new ArrayList<>();
+        row3.add(InlineKeyboardButton.builder()
+                .text("💄 Dekorativ kosmetika")
+                .callbackData("category_makeup")
+                .build());
+
+        rows.add(row1);
+        rows.add(row2);
+        rows.add(row3);
         keyboard.setKeyboard(rows);
+
+        return keyboard;
+    }
+
+    private InlineKeyboardMarkup getProductKeyboard(String productId) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        row1.add(InlineKeyboardButton.builder()
+                .text("📋 Batafsil")
+                .callbackData("product_" + productId)
+                .build());
+        row1.add(InlineKeyboardButton.builder()
+                .text("🛒 Savatchaga")
+                .callbackData("add_to_cart_" + productId)
+                .build());
+
+        rows.add(row1);
+        keyboard.setKeyboard(rows);
+
+        return keyboard;
+    }
+
+    private InlineKeyboardMarkup getAddToCartKeyboard(String productId) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        row1.add(InlineKeyboardButton.builder()
+                .text("🛒 Savatchaga qo'shish")
+                .callbackData("add_to_cart_" + productId)
+                .build());
+
+        rows.add(row1);
+        keyboard.setKeyboard(rows);
+
+        return keyboard;
+    }
+
+    private InlineKeyboardMarkup getAfterAddKeyboard() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        row1.add(InlineKeyboardButton.builder()
+                .text("🛒 Savatchani ko'rish")
+                .callbackData("show_cart")
+                .build());
+
+        rows.add(row1);
+        keyboard.setKeyboard(rows);
+
         return keyboard;
     }
 
@@ -364,59 +465,85 @@ public class MyBot extends TelegramLongPollingBot {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
         List<InlineKeyboardButton> row1 = new ArrayList<>();
-        InlineKeyboardButton checkoutButton = new InlineKeyboardButton();
-        checkoutButton.setText("✅ Buyurtma berish");
-        checkoutButton.setCallbackData("checkout");
-        row1.add(checkoutButton);
-        rows.add(row1);
+        row1.add(InlineKeyboardButton.builder()
+                .text("💳 Buyurtma berish")
+                .callbackData("checkout")
+                .build());
 
         List<InlineKeyboardButton> row2 = new ArrayList<>();
-        InlineKeyboardButton clearButton = new InlineKeyboardButton();
-        clearButton.setText("🗑️ Savatni tozalash");
-        clearButton.setCallbackData("clear_cart");
-        row2.add(clearButton);
-        rows.add(row2);
+        row2.add(InlineKeyboardButton.builder()
+                .text("🗑️ Tozalash")
+                .callbackData("clear_cart")
+                .build());
 
+        rows.add(row1);
+        rows.add(row2);
         keyboard.setKeyboard(rows);
+
         return keyboard;
     }
 
-    // Product sinfi
-    public static class Product {
-        private int id;
+    // Yordamchi metodlar
+    private List<Product> getProductsByCategory(String category) {
+        List<Product> result = new ArrayList<>();
+
+        switch (category) {
+            case "perfume":
+                result.add(products.get("parfum1"));
+                result.add(products.get("parfum2"));
+                break;
+            case "skincare":
+                result.add(products.get("cream1"));
+                result.add(products.get("shampoo1"));
+                break;
+            case "makeup":
+                result.add(products.get("lipstick1"));
+                break;
+        }
+
+        return result;
+    }
+
+    private String formatPrice(int price) {
+        return String.format("%,d", price).replace(',', ' ');
+    }
+
+    // Mahsulot klassi
+    static class Product {
+        private String id;
         private String name;
+        private String description;
         private int price;
         private String imageUrl;
-        private String description;
 
-        public Product(int id, String name, int price, String imageUrl, String description) {
+        public Product(String id, String name, String description, int price, String imageUrl) {
             this.id = id;
             this.name = name;
+            this.description = description;
             this.price = price;
             this.imageUrl = imageUrl;
-            this.description = description;
         }
 
         // Getters
-        public int getId() { return id; }
+        public String getId() { return id; }
         public String getName() { return name; }
+        public String getDescription() { return description; }
         public int getPrice() { return price; }
         public String getImageUrl() { return imageUrl; }
-        public String getDescription() { return description; }
     }
 
-    // CartItem sinfi
-    public static class CartItem {
-        private int productId;
+    // Savatcha elementi klassi
+    static class CartItem {
+        private String productId;
         private int quantity;
 
-        public CartItem(int productId, int quantity) {
+        public CartItem(String productId, int quantity) {
             this.productId = productId;
             this.quantity = quantity;
         }
 
         // Getters and Setters
-        public int getProductId() { return productId; }
+        public String getProductId() { return productId; }
         public int getQuantity() { return quantity; }
         public void setQuantity(int quantity) { this.quantity = quantity; }
     }
